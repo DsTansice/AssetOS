@@ -67,7 +67,7 @@ version: '3.8'
    
    services:
      assetos:
-       image: php:8.2-apache
+       image: tans0008/assetos:latest
        container_name: assetOS
        ports:
          - "8080:80"
@@ -117,7 +117,7 @@ docker run -d \
   -v $(pwd):/var/www/html \
   -v $(pwd)/data:/var/www/html/db \
   --restart unless-stopped \
-  php:8.1-apache
+  tans0008/assetos:latest
 
 # Install the SQLite extension
 docker exec assetOS bash -c "apt-get update && apt-get install -y sqlite3 libsqlite3-dev && docker-php-ext-install pdo pdo_sqlite"
