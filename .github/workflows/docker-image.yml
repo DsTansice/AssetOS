@@ -1,0 +1,290 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: 
+      - main
+      - master
+      - develop
+    tags: 
+      - 'v*'
+  pull_request:
+    branches: 
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Custom tag for the Docker image'
+        required: false
+        default: 'manual'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: dstansice/assetos
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+    - name: 🏗️ Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🏷️ Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+        labels: |
+          org.opencontainers.image.title=AssetOS
+          org.opencontainers.image.description=Open Source Asset Holding Cost Tracking System
+          org.opencontainers.image.url=https://github.com/DsTansice/AssetOS
+          org.opencontainers.image.source=https://github.com/DsTansice/AssetOS
+          org.opencontainers.image.vendor=DsTansice
+          org.opencontainers.image.licenses=GPL-3.0
+
+    - name: 🔐 Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: 🏗️ Build Docker image (for PR)
+      if: github.event_name == 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 🚀 Build and push Docker image
+      if: github.event_name != 'pull_request'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 🧪 Test Docker image
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "🧪 Testing Docker image..."
+        
+        # 获取构建的镜像标签
+        IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+        echo "Testing image: $IMAGE_TAG"
+        
+        # 启动容器进行测试
+        docker run -d --name assetos-test -p 8080:80 $IMAGE_TAG
+        
+        # 等待容器启动
+        echo "⏳ Waiting for container to start..."
+        sleep 30
+        
+        # 健康检查
+        echo "🔍 Performing health check..."
+        for i in {1..10}; do
+          if curl -f http://localhost:8080/ >/dev/null 2>&1; then
+            echo "✅ Health check passed!"
+            break
+          else
+            echo "⏳ Attempt $i/10 failed, waiting..."
+            sleep 10
+          fi
+        done
+        
+        # 检查容器状态
+        if ! curl -f http://localhost:8080/ >/dev/null 2>&1; then
+          echo "❌ Health check failed!"
+          echo "📋 Container logs:"
+          docker logs assetos-test
+          exit 1
+        fi
+        
+        # 清理测试容器
+        docker stop assetos-test
+        docker rm assetos-test
+        echo "🧹 Test cleanup completed"
+
+    - name: 🔍 Run security scan
+      if: github.event_name != 'pull_request'
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: 📊 Upload security scan results
+      if: github.event_name != 'pull_request'
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: 📝 Generate deployment info
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "🐳 Docker Image Information" > deployment-info.md
+        echo "=========================" >> deployment-info.md
+        echo "" >> deployment-info.md
+        
+        # 镜像信息
+        echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> deployment-info.md
+        echo "**Tags:** \`${{ steps.meta.outputs.tags }}\`" >> deployment-info.md
+        echo "**Build Date:** \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> deployment-info.md
+        echo "**Git Commit:** \`${{ github.sha }}\`" >> deployment-info.md
+        echo "**Git Ref:** \`${{ github.ref }}\`" >> deployment-info.md
+        echo "" >> deployment-info.md
+        
+        # 快速部署命令
+        echo "## 🚀 Quick Deploy" >> deployment-info.md
+        echo "" >> deployment-info.md
+        echo '```bash' >> deployment-info.md
+        echo "# Pull latest image" >> deployment-info.md
+        echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> deployment-info.md
+        echo "" >> deployment-info.md
+        echo "# Run container" >> deployment-info.md
+        echo "docker run -d --name assetOS \\" >> deployment-info.md
+        echo "  -p 8080:80 \\" >> deployment-info.md
+        echo "  -v assetOS-data:/var/www/html/db \\" >> deployment-info.md
+        echo "  --restart unless-stopped \\" >> deployment-info.md
+        echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> deployment-info.md
+        echo '```' >> deployment-info.md
+        echo "" >> deployment-info.md
+        
+        # Docker Compose
+        echo "## 🐙 Docker Compose" >> deployment-info.md
+        echo "" >> deployment-info.md
+        echo '```yaml' >> deployment-info.md
+        echo "version: '3.8'" >> deployment-info.md
+        echo "services:" >> deployment-info.md
+        echo "  assetos:" >> deployment-info.md
+        echo "    image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> deployment-info.md
+        echo "    container_name: assetOS" >> deployment-info.md
+        echo "    ports:" >> deployment-info.md
+        echo "      - '8080:80'" >> deployment-info.md
+        echo "    volumes:" >> deployment-info.md
+        echo "      - ./data:/var/www/html/db" >> deployment-info.md
+        echo "    restart: unless-stopped" >> deployment-info.md
+        echo '```' >> deployment-info.md
+        echo "" >> deployment-info.md
+        
+        # 访问信息
+        echo "## 🌐 Access" >> deployment-info.md
+        echo "After deployment, visit: http://localhost:8080" >> deployment-info.md
+        echo "" >> deployment-info.md
+        echo "**First time setup:**" >> deployment-info.md
+        echo "1. Register the first user (becomes admin)" >> deployment-info.md
+        echo "2. Configure system settings" >> deployment-info.md
+        echo "3. Start managing your assets!" >> deployment-info.md
+
+    - name: 📤 Upload deployment info
+      if: github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-info
+        path: deployment-info.md
+
+    - name: 💬 Comment PR with build info
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const comment = `## 🐳 Docker Build Status
+          
+          ✅ Docker image build completed successfully!
+          
+          **Image would be tagged as:** \`${{ steps.meta.outputs.tags }}\`
+          **Platforms:** linux/amd64
+          
+          > Note: Image is not pushed for PR builds. Merge to main/master to publish.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: 🎉 Create release notes (for tags)
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        echo "# 🚀 AssetOS ${{ github.ref_name }} Release" > release-notes.md
+        echo "" >> release-notes.md
+        echo "## 🐳 Docker Image" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "**Registry:** Docker Hub" >> release-notes.md
+        echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}\`" >> release-notes.md
+        echo "**Platforms:** linux/amd64, linux/arm64" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Quick Start" >> release-notes.md
+        echo '```bash' >> release-notes.md
+        echo "docker run -d --name assetOS -p 8080:80 \\" >> release-notes.md
+        echo "  -v assetOS-data:/var/www/html/db \\" >> release-notes.md
+        echo "  --restart unless-stopped \\" >> release-notes.md
+        echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}" >> release-notes.md
+        echo '```' >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### What's New" >> release-notes.md
+        echo "- Latest stable release" >> release-notes.md
+        echo "- Security updates included" >> release-notes.md
+        echo "- Performance optimizations" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Upgrade Notes" >> release-notes.md
+        echo "1. Backup your data: \`docker exec assetOS tar -czf /backup.tar.gz /var/www/html/db\`" >> release-notes.md
+        echo "2. Stop old container: \`docker stop assetOS && docker rm assetOS\`" >> release-notes.md
+        echo "3. Pull new image: \`docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}\`" >> release-notes.md
+        echo "4. Start new container with same volume mounts" >> release-notes.md
+
+    - name: 📋 Upload release notes
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-notes
+        path: release-notes.md
+
+    - name: 📺 Output summary
+      if: success()
+      run: |
+        echo "## 🎉 Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Status:** Success" >> $GITHUB_STEP_SUMMARY
+        echo "🐳 **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "🏷️ **Tags:** \`${{ steps.meta.outputs.tags }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "📅 **Build Time:** \`$(date -u '+%Y-%m-%d %H:%M:%S UTC')\`" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 **Git Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+          echo "🚀 **Docker Hub:** https://hub.docker.com/r/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Deploy Command" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker run -d --name assetOS -p 8080:80 -v data:/var/www/html/db ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
