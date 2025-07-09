@@ -4,6 +4,7 @@
 
 AssetOS is an easy-to-use open source item holding cost tracking system that helps you easily manage and track the asset holding costs of individuals or companies. It supports multiple users and multiple languages, and provides rich statistical analysis functions.
 
+[中文文档](https://github.com/DsTansice/AssetOS/blob/main/README_zh.md)
 ## ✨ Main functions
 
 - 📊 **Asset management**: Add, edit, and delete asset information, and support multiple status management
@@ -16,6 +17,40 @@ AssetOS is an easy-to-use open source item holding cost tracking system that hel
 - 🔒 **Security protection**: Complete user authentication and data security protection
 
 ## 🚀 Quick Start
+
+### ⚡ One-Click Deployment (Fastest)
+
+**🎯 Super Quick Start - Choose your preferred method:**
+
+```bash
+# Method 1: One-line curl deployment
+curl -fsSL https://raw.githubusercontent.com/DsTansice/AssetOS/main/quick-deploy.sh | bash
+
+# Method 2: Direct Docker Hub pull & run
+docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+
+# Method 3: With custom data directory
+mkdir my-assetos-data && docker run -d --name assetOS -p 8080:80 -v $(pwd)/my-assetos-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+```
+
+**🔧 Custom deployment options:**
+```bash
+# Use different port (e.g., 3000)
+docker run -d --name assetOS -p 3000:80 -v assetOS-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+
+# With backup directory
+docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db -v assetOS-backups:/var/www/html/backups --restart unless-stopped dstansice/assetos:latest
+
+# Check deployment status
+docker ps | grep assetOS && echo "✅ AssetOS is running at: http://localhost:8080"
+```
+
+**📱 After deployment:**
+1. 🌐 Visit: `http://localhost:8080`
+2. 👤 Register first user (becomes admin)
+3. 🎉 Start tracking your assets!
+
+---
 
 ### Method 1: Docker deployment (recommended)
 

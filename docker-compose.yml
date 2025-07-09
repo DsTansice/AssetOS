@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   assetos:
-    image: php:8.1-apache
+    image: php:8.2-apache
     container_name: assetOS
     ports:
       - "8080:80"
@@ -15,7 +15,7 @@ services:
     command: >
       bash -c "
       apt-get update &&
-      apt-get install -y sqlite3 libsqlite3-dev &&
+      apt-get install -y sqlite3 libsqlite3-dev curl &&
       docker-php-ext-install pdo pdo_sqlite &&
       chown -R www-data:www-data /var/www/html/db &&
       chmod -R 755 /var/www/html/db &&
