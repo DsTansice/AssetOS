@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  assetos:
+    image: php:8.1-apache
+    container_name: assetOS
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+      - ./db:/var/www/html/db
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+    restart: unless-stopped
+    command: >
+      bash -c "
+      apt-get update &&
+      apt-get install -y sqlite3 libsqlite3-dev &&
+      docker-php-ext-install pdo pdo_sqlite &&
+      chown -R www-data:www-data /var/www/html/db &&
+      chmod -R 755 /var/www/html/db &&
+      apache2-foreground
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 可选：添加数据库备份服务
+  backup:
+    image: alpine:latest
+    container_name: assetOS-backup
+    volumes:
+      - ./db:/data
+      - ./backups:/backups
+    environment:
+      - BACKUP_SCHEDULE=0 2 * * *  # 每天凌晨2点备份
+    command: >
+      sh -c "
+      apk add --no-cache sqlite &&
+      while true; do
+        echo 'Creating backup...' &&
+        timestamp=\$$(date +%Y%m%d_%H%M%S) &&
+        mkdir -p /backups &&
+        sqlite3 /data/database.sqlite '.backup /backups/database_backup_'\$$timestamp'.sqlite' &&
+        echo 'Backup completed: database_backup_'\$$timestamp'.sqlite' &&
+        find /backups -name 'database_backup_*.sqlite' -mtime +7 -delete &&
+        sleep 86400
+      done
+      "
+    restart: unless-stopped
+    depends_on:
+      - assetos
+
+networks:
+  default:
+    name: assetos-network

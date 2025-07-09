@@ -1,88 +1,286 @@
-# AssetOS - 物品持有成本追踪系统
+# AssetOS - Open source item holding cost tracking system
 
-AssetOS 是一个简单易用的 Web 应用程序，用于追踪和管理个人或组织的物品持有成本。用户可以记录物品的购买信息（名称、分类、日期、价格、货币），计算持有天数和每日成本，支持 CSV 导入/导出、分类管理、用户注册/登录、邮箱验证以及管理员功能（如用户管理、数据备份、Webhook 设置）。
+![AssetOS Logo](asset/logo.png)
 
-本项目由 [DsTansice](https://github.com/DsTansice) 开发，灵感来源于 [Wallos](https://github.com/ellite/Wallos)，旨在提供轻量级的资产管理解决方案。[](https://github.com/dstansice)[](https://github.com/DumbWareio/DumbAssets)
+AssetOS is an easy-to-use open source item holding cost tracking system that helps you easily manage and track the asset holding costs of individuals or companies. It supports multiple users and multiple languages, and provides rich statistical analysis functions.
 
-## 功能
-- **物品管理**：添加、删除、过滤、排序物品，计算每日持有成本。
-- **用户系统**：
-  - 注册：支持用户名、邮箱、密码，第一个注册用户自动为管理员。
-  - 登录：支持用户名或邮箱登录，需邮箱验证。
-  - 管理员面板：管理用户（设为/取消管理员、删除）、自定义分类、数据备份、Webhook 设置。
-- **数据导入/导出**：支持 CSV 格式导入/导出物品数据。
-- **Webhook 通知**：支持物品添加和用户注册事件的 Webhook 通知。
-- **多货币支持**：支持 CNY、USD、EUR 等货币。
+## ✨ Main functions
 
-## 安装
-1. **克隆仓库**：
+- 📊 **Asset management**: Add, edit, and delete asset information, and support multiple status management
+- 💰 **Cost tracking**: Automatically calculate daily holding costs and accurately grasp asset value changes
+- 📈 **Statistical reports**: Rich charts and analysis reports, data visualization
+- 📤 **Data import and export**: Support CSV format batch import and export for easy data migration
+- 👥 **User management**: Multi-user support, complete permission control system
+- 🔧 **System settings**: Custom classification, SMTP mail configuration, Webhook integration
+- 🌐 **Multi-language support**: Chinese/English interface, support language expansion
+- 🔒 **Security protection**: Complete user authentication and data security protection
+
+## 🚀 Quick Start
+
+### Method 1: Docker deployment (recommended)
+
+#### Using Docker Compose (easiest)
+
+1. Create a project directory:
+```bash
+mkdir assetOS && cd assetOS
+```
+
+2. Create a `docker-compose.yml` file:
+```yaml
+version: '3.8'
+   
+   services:
+     assetos:
+       image: php:8.2-apache
+       container_name: assetOS
+       ports:
+         - "8080:80"
+       volumes:
+         - ./src:/var/www/html
+         - ./data:/var/www/html/db
+       environment:
+         - APACHE_DOCUMENT_ROOT=/var/www/html
+       restart: unless-stopped
+       command: >
+         bash -c "
+         apt-get update &&
+         apt-get install -y sqlite3 libsqlite3-dev &&
+         docker-php-ext-install pdo pdo_sqlite &&
+         apache2-foreground
+         "
+   ```
+
+3. Clone the project code:
+```bash
+git clone https://github.com/DsTansice/AssetOS.git src
+mkdir data
+chmod 755 data
+```
+
+4. Start the container:
+```bash
+docker-compose up -d
+```
+
+5. Visit `http://localhost:8080` to start using
+
+#### Direct deployment using Docker
+```bash
+# Pull code
+git clone https://github.com/DsTansice/AssetOS.git
+cd AssetOS
+
+# Create a data directory
+mkdir data
+chmod 755 data
+
+# Build and run the container
+docker run -d \
+  --name assetOS \
+  -p 8080:80 \
+  -v $(pwd):/var/www/html \
+  -v $(pwd)/data:/var/www/html/db \
+  --restart unless-stopped \
+  php:8.1-apache
+
+# Install the SQLite extension
+docker exec assetOS bash -c "apt-get update && apt-get install -y sqlite3 libsqlite3-dev && docker-php-ext-install pdo pdo_sqlite"
+
+# Restart the container to make the extension take effect
+docker restart assetOS
+```
+
+### Method 2: Traditional deployment
+
+#### Environment requirements
+- PHP 7.4 or higher
+- SQLite 3 extension
+- Web server (Apache/Nginx or PHP built-in server)
+
+#### Installation steps
+
+1. Clone the project:
    ```bash
    git clone https://github.com/DsTansice/AssetOS.git
    cd AssetOS
    ```
-2. **安装依赖**：
-   - 确保 PHP 8.2 已安装，启用 `pdo_sqlite` 和 `curl` 扩展。
-   - 安装 PHPMailer：
-     ```bash
-     composer install
-     ```
-     或手动将 PHPMailer 的 `src` 目录放入 `lib/PHPMailer/`。
-3. **配置 SMTP**：
-   - 编辑 `api/api.php`，更新 `sendVerificationEmail` 函数中的 SMTP 设置（`Host`、`Username`、`Password`）。
-   - 示例（Gmail）：
-     ```php
-     $mail->Host = 'smtp.gmail.com';
-     $mail->Username = 'your-email@gmail.com';
-     $mail->Password = 'your-app-password';
-     ```
-4. **设置文件权限**：
-   ```bash
-   chmod -R 775 db
-   chown -R www-data:www-data db  # 对于 Apache/Nginx
-   ```
-5. **运行服务器**：
-   ```bash
-   php -S localhost:8000
-   ```
-   或使用 Apache/Nginx 部署。
 
-## 使用
-1. **注册**：访问 `http://localhost:8000/register.php`，输入用户名、邮箱、密码，检查邮箱验证链接。
-2. **登录**：在 `http://localhost:8000/login.php` 使用用户名或邮箱登录。
-3. **物品管理**：在 `http://localhost:8000/index.php` 添加、删除、导入/导出物品。
-4. **管理员功能**：在 `http://localhost:8000/admin.php` 管理用户、分类、备份数据、设置 Webhook。
-
-## Docker 部署
+2. Create a database directory:
 ```bash
-docker build -t assetos .
-docker run -d -p 8000:80 --name assetos-container assetos
+mkdir db
+chmod 755 db
 ```
 
-## 开发
-- **技术栈**：PHP 8.2、SQLite、JavaScript、Tailwind CSS（提取为静态 CSS）、PHPMailer。
-- **目录结构**：
-  ```
-  AssetOS/
-  ├── api/              # API 端点
-  ├── css/              # 样式文件
-  ├── db/               # SQLite 数据库
-  ├── js/               # JavaScript 文件
-  ├── lib/              # 第三方库（如 PHPMailer）
-  ├── .gitignore
-  ├── composer.json
-  ├── Dockerfile
-  ├── LICENSE
-  ├── README.md
-  ├── admin.php         # 管理员面板
-  ├── index.php         # 主页面
-  ├── login.php         # 登录页面
-  ├── register.php      # 注册页面
-  ```
-- **贡献**：欢迎提交 Issue 或 Pull Request 到 [AssetOS](https://github.com/DsTansice/AssetOS)。
+3. Configure a web server or use the PHP built-in server:
+```bash
+# Use the PHP built-in server (development environment)
+php -S localhost:8000
 
-## 许可证
-MIT License，详见 [LICENSE](LICENSE) 文件。
+# Or configure Apache/Nginx to point to the project root directory
+```
 
-## 联系
-- GitHub: [DsTansice](https://github.com/DsTansice)
-- 问题反馈：请在 GitHub 提交 Issue。
+4. Access the application and register the first user (automatically becomes an administrator)
+
+## 📁 Directory structure
+
+```
+AssetOS/
+├── api/ # API interface
+│ └── api.php
+├── asset/ # Static resources
+│ ├── logo.png
+│ └── favicon.ico
+├── css/ # Style file
+│ └── styles.css
+├── db/ # Database file directory
+├── includes/ # Public components
+│ ├── footer.php
+│ └── url_encoder.php
+├── js/ # JavaScript file
+│ ├── script.js
+│ ├── theme-toggle.js
+│ └── user-dropdown.js
+├── admin.php # Administrator panel
+├── index.php # Asset list page
+├── login.php # Login page
+├── register.php # Registration page
+├── menu.php # Main menu
+├── manage.php # Asset management page
+├── reports.php # Statistics report page
+├── settings.php # Personal settings page
+├── sponsor.php # Sponsorship page
+├── version.php # Version information
+├── docker-compose.yml # Docker orchestration file
+└── README.md # Project description
+```
+
+## 🔧 Detailed Function
+
+### 📊 Asset Management
+- **Add Asset**: Supports name, category, purchase date, price and other information entry
+- **Status Management**: In use, discarded, transferred, damaged and other status
+- **Batch Operation**: Batch import and export in CSV format, support large-scale data processing
+- **Classification Management**: Customize asset classification and flexibly organize asset structure
+
+### 📈 Statistical Analysis
+- **Real-time Statistics**: Real-time calculation of total asset quantity, value and holding cost
+- **Chart Display**: Classification distribution, status analysis, trend chart
+- **Cost Analysis**: Daily holding cost, monthly expenditure trend analysis
+- **Data Export**: Statistical reports support multiple formats for export
+
+### 👥 Users and Permissions
+- **Multi-user Support**: Supports multiple users to manage assets independently
+- **Permission Classification**: Separation of administrator and ordinary user permissions
+- **Security Authentication**: Complete login authentication and session management
+
+### ⚙️ System Configuration
+- **Theme Switch**: Freely switch between light and dark themes
+- **Language Settings**: Switch between Chinese and English interfaces
+- **Mail Configuration**: SMTP mail service configuration
+- **Webhook**: Support third-party system integration
+
+## 🛠 Technology Stack
+
+- **Backend Framework**: PHP 8.1+
+- **Database**: SQLite 3
+- **Front-end Technology**: HTML5 + CSS3 + JavaScript (ES6+)
+- **UI Framework**: Tailwind CSS
+- **Containerization**: Docker + Docker Compose
+- **Version Control**: Git
+
+## 🔒 Security Features
+
+- SQL Injection Protection
+- XSS Attack Protection
+- CSRF Token Validation
+- User Session Management
+- Password Encryption Storage
+- File Upload Security Check
+
+## 🤝 Contribution Guide
+
+We welcome all forms of contributions! Whether you are a developer, designer or user, you can contribute to the project:
+
+### Contribution methods
+- 🐛 **Bug Report**: Please provide feedback if you find any problems
+- 💡 **Feature Suggestions**: Propose new features or improvement suggestions
+- 📖 **Document Improvement**: Help improve documentation and usage guides
+- 🔧 **Code Contribution**: Submit code fixes or new features
+- 🌐 **Multilingual**: Help translate the interface to more languages
+- 🎨 **Design Optimization**: Suggest UI/UX design improvements
+
+### Development process
+1. Fork this project to your GitHub account
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit changes: `git commit -m 'Add some feature'`
+4. Push branch: `git push origin feature/your-feature-name`
+5. Create a Pull Request
+
+### Development environment setup
+```bash
+# Clone your forked repository
+git clone https://github.com/YOUR_USERNAME/AssetOS.git
+cd AssetOS
+
+# Use Docker to quickly build a development environment
+docker-compose up -d
+
+# Or use the traditional method
+php -S localhost:8000
+```
+
+## 📜 Open Source License
+
+This project adopts the dual licensing model of **GPL-3.0 + Commercial License**:
+
+- **Open Source Use**: Follow the GPL-3.0 license and can be used, modified and distributed freely
+
+- **Commercial License**: For corporate commercial use, please contact to obtain a commercial license
+
+### Commercial License Contact Information
+- 📧 **Email**: admin@010085.xyz
+- 📋 Please email for detailed licensing terms
+
+## 💬 Community Exchange
+
+Join our community to get the latest updates and technical support:
+
+- 💬 **Telegram Exchange Group**: [https://t.me/AssetOSOffical](https://t.me/AssetOSOffical)
+- 📢 **Telegram Channel**: [https://t.me/OPAssetOS](https://t.me/OPAssetOS)
+- 🐛 **GitHub Issues**: [Issue feedback](https://github.com/DsTansice/AssetOS/issues)
+- 📖 **Project documentation**: [Usage documentation](https://github.com/DsTansice/AssetOS/wiki)
+## ❤️ Support the project
+
+If AssetOS is helpful to you, please consider supporting the project development:
+
+- ⭐ **GitHub Star**: Give the project a star
+- 🔄 **Share and recommend**: Recommend to more friends in need
+- 🐛 **Feedback and suggestions**: Help us find and fix problems
+- 💰 **Sponsorship support**: ![Sponsor project development](https://www.010085.xyz/pic/wechat.jpg)
+- 🤝 **Code contribution**: Participate in the development to make the project better
+
+## 🔗 Related links
+
+- 🏠 **Project homepage**: [GitHub Repository](https://github.com/DsTansice/AssetOS)
+- 🐛 **Issue feedback**: [Issues](https://github.com/DsTansice/AssetOS/issues)
+- 📖 **Usage documentation**: [Wiki](https://github.com/DsTansice/AssetOS/wiki)
+- 📋 **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/DsTansice/AssetOS/discussions)
+
+## 📊 Project Status
+![GitHub stars](https://img.shields.io/github/stars/DsTansice/AssetOS?style=social)
+![GitHub forks](https://img.shields.io/github/forks/DsTansice/AssetOS?style=social)
+![GitHub issues](https://img.shields.io/github/issues/DsTansice/AssetOS)
+![GitHub license](https://img.shields.io/github/license/DsTansice/AssetOS)
+![GitHub last commit](https://img.shields.io/github/last-commit/DsTansice/AssetOS)
+
+---
+
+<div align="center">
+
+**© 2025 [DsTansice](https://github.com/DsTansice) - AssetOS 开源物品持有成本追踪系统**
+
+*让资产管理变得简单高效* ✨
+
+</div>
