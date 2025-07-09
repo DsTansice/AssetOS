@@ -27,19 +27,19 @@ AssetOS is an easy-to-use open source item holding cost tracking system that hel
 curl -fsSL https://raw.githubusercontent.com/DsTansice/AssetOS/main/quick-deploy.sh | bash
 
 # Method 2: Direct Docker Hub pull & run
-docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db --restart unless-stopped tans0008/assetos:latest
 
 # Method 3: With custom data directory
-mkdir my-assetos-data && docker run -d --name assetOS -p 8080:80 -v $(pwd)/my-assetos-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+mkdir my-assetos-data && docker run -d --name assetOS -p 8080:80 -v $(pwd)/my-assetos-data:/var/www/html/db --restart unless-stopped tans0008/assetos:latest
 ```
 
 **🔧 Custom deployment options:**
 ```bash
 # Use different port (e.g., 3000)
-docker run -d --name assetOS -p 3000:80 -v assetOS-data:/var/www/html/db --restart unless-stopped dstansice/assetos:latest
+docker run -d --name assetOS -p 3000:80 -v assetOS-data:/var/www/html/db --restart unless-stopped tans0008/assetos:latest
 
 # With backup directory
-docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db -v assetOS-backups:/var/www/html/backups --restart unless-stopped dstansice/assetos:latest
+docker run -d --name assetOS -p 8080:80 -v assetOS-data:/var/www/html/db -v assetOS-backups:/var/www/html/backups --restart unless-stopped tans0008/assetos:latest
 
 # Check deployment status
 docker ps | grep assetOS && echo "✅ AssetOS is running at: http://localhost:8080"
