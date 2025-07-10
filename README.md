@@ -16,6 +16,12 @@ AssetOS is an easy-to-use open source item holding cost tracking system that hel
 - 🌐 **Multi-language support**: Chinese/English interface, support language expansion
 - 🔒 **Security protection**: Complete user authentication and data security protection
 
+## Partial screenshots
+
+![Main interface](asset/main.png)
+![Menu](asset/menu.png)
+![Management interface](asset/mang.png)
+
 ## 🚀 Quick Start
 
 ### ⚡ One-Click Deployment (Fastest)
