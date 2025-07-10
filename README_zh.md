@@ -38,7 +38,7 @@ AssetOS 是一个简单易用的开源物品持有成本追踪系统，帮助您
    
    services:
      assetos:
-       image: php:8.2-apache
+       image: tans0008/assetos:latest
        container_name: assetOS
        ports:
          - "8080:80"
@@ -89,7 +89,7 @@ docker run -d \
   -v $(pwd):/var/www/html \
   -v $(pwd)/data:/var/www/html/db \
   --restart unless-stopped \
-  php:8.1-apache
+  tans0008/assetos:latest
 
 # 安装 SQLite 扩展
 docker exec assetOS bash -c "apt-get update && apt-get install -y sqlite3 libsqlite3-dev && docker-php-ext-install pdo pdo_sqlite"
